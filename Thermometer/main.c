@@ -29,13 +29,30 @@
 #define BR_19200    51
 #define BR_9600     103
 
+#define LED_DIGITS  4
 
 //=============================================================================================
-// LOCAK VARIABLES
+// LOCAL VARIABLES
 //=============================================================================================
 
-volatile unsigned int e_adcValue;       // Analog value * 10
 volatile unsigned char e_displayBuf[4]; // Display buffer
+
+unsigned char e_LED_Symbols[][2] = 
+{
+    {'0', 0b00000000 },
+    {'1', 0b00000000 },
+    {'2', 0b00000000 },
+    {'3', 0b00000000 },
+    {'4', 0b00000000 },
+    {'5', 0b00000000 },
+    {'6', 0b00000000 },
+    {'7', 0b00000000 },
+    {'8', 0b00000000 },
+    {'9', 0b00000000 },
+    {'-', 0b00000000 }
+
+};
+
 
 //=============================================================================================
 // FUNCTION PROTOTYPES
@@ -96,6 +113,52 @@ void USART_Init(unsigned int baudrate)
 }
 
 //---------------------------------------------------------------------------------------------
+// Function:    Send symbol via USART
+// Parameters:  ch -- the symbol
+//---------------------------------------------------------------------------------------------
+
+inline void USART_SendChar(unsigned char ch)
+{
+    // wait for data to be received
+    while(!(UCSRA & (1<<UDRE)));
+    // send data
+    UDR = ch;
+    
+}
+
+//---------------------------------------------------------------------------------------------
+// Function:    USART_SendStr - Sends string via USART
+// Parameters:  str -- pointer to the string to be sent
+//---------------------------------------------------------------------------------------------
+
+void USART_SendStr(char *str)
+{
+    static unsigned char ind;
+
+    //    cli();
+    for(ind = 0; str[ind] != '\0'; ++ind)
+    {
+        USART_SendChar(str[ind]);
+
+        if(str[ind] == '\n')
+        break;
+    }
+    //    sei();
+}
+
+
+
+//---------------------------------------------------------------------------------------------
+// Function	IO_Init() -- Initialize IO ports
+//---------------------------------------------------------------------------------------------
+
+IO_Init()
+{
+    
+}
+
+
+//---------------------------------------------------------------------------------------------
 // DisplaySymbol():      Initialize ADC for Channel 0
 //---------------------------------------------------------------------------------------------
 
@@ -111,19 +174,53 @@ DisplaySymbol(unsigned char digit, unsigned char symbol)
 
 ISR(ADC_vect)
 {
-    unsigned int adcBuf;
-    unsigned char adcStr[16];
-    unsigned char len;
+    long v;
+    long t;
+    long AdcBuf;
+    short strLen;
+    unsigned char strBuf[16];
+
+    AdcBuf = ADCL;
+    AdcBuf = (ADCH << 8) | AdcBuf;
+
+    v = (AdcBuf * 500) / 1024;
     
-    adcBuf = ADCL;
-    adcBuf = (ADCH << 8) | adcBuf;
+    t = ((v - V_MIN) * (T_MAX - T_MIN)) / (V_MAX - V_MIN) + T_MIN;
+    sprintf(strBuf, "%d", t);
+
+    // Count string len
+    for(strLen = 0; strBuf[strLen] != 0; strLen++)
+    ;
     
-    e_adcValue = (adcBuf * 50) / 1023;
-    sprintf(adcStr, "%d", e_adcValue);
+    // Clear LED buffer
+    e_displayBuf[0] = 0;
+    e_displayBuf[1] = 0;
+    e_displayBuf[2] = 0;
+    e_displayBuf[3] = 0;
     
+    pos = LED_DIGITS - strLen;
+    strPtr = &(strBuf[0]);
     
-    // Restarting AD conversion before exit
+    //Put string
+    for(; pos < LED_DIGITS ; ++pos) 
+    {
+        e_displayBuf[pos] = GetLedSymbol(*strPtr);
+        strPtr++;
+    }
+    
     StartConvAdc();
+}
+
+//---------------------------------------------------------------------------------------------
+// Function:    GetLedSymbol -- converts ASCII code to LED code
+//---------------------------------------------------------------------------------------------
+unsigned char GetLedSymbol(char s)
+{
+    unsigned char ledSymbol = (unsigned char)s;
+    
+    
+    
+    return ledSymbol;
 }
 
 
@@ -136,6 +233,7 @@ int main(void)
     unsigned char digit = 0;  // Digit position 0, 1, 2, 3
     unsigned char symbol;
 	
+    IO_Init();
     ADC_Init();
     USART_Init(BR_115200);
 
