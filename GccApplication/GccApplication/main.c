@@ -74,6 +74,8 @@ unsigned char e_LED_Symbols[][2] =
 
 void USART_SendChar(unsigned char ch);
 
+
+
 //=============================================================================================
 // DEVICE HW SPECIFIC FUNCTIONS
 //=============================================================================================
@@ -126,13 +128,13 @@ void USART_Init(unsigned int baudrate)
     // Data frame format: 8 Data, 1 Stop, No Parity
     // USART0 Transmitter: On
     // USART0 Mode: Asynchronous
-    UCSRA = 0x00;
+    UCSR0A = 0x00;
 
-    UCSRB = (1 << TXEN);
-    UCSRC = (1 << UCSZ1) + (1 << UCSZ0); // 8 bit data frame 
+    UCSR0B = (1 << TXEN0);
+    UCSR0C = (1 << UCSZ01) + (1 << UCSZ00);
 
-    UBRRH = baudrate >> 8;
-    UBRRL = baudrate;
+    UBRR0H =baudrate >> 8;
+    UBRR0L = baudrate;
 }
 
 //---------------------------------------------------------------------------------------------
@@ -143,9 +145,9 @@ void USART_Init(unsigned int baudrate)
 inline void USART_SendChar(unsigned char ch)
 {
     // wait for data to be received
-    while(!(UCSRA & (1<<UDRE)));
+    while(!(UCSR0A & (1<<UDRE0)));
     // send data
-    UDR = ch;
+    UDR0 = ch;
 
 }
 
