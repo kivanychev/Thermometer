@@ -42,6 +42,12 @@
 #define DIGIT3      2
 #define DIGIT4      3
 
+#define DIGIT_DELAY 6000
+#define TRANSISTOR_DELAY 2000
+
+// Number of frames to display the measured value
+#define FRAMES_CNT  200
+
 //=============================================================================================
 // LOCAL VARIABLES
 //=============================================================================================
@@ -73,8 +79,6 @@ unsigned char e_LED_Symbols[][2] =
 //=============================================================================================
 
 void USART_SendChar(unsigned char ch);
-
-
 
 //=============================================================================================
 // DEVICE HW SPECIFIC FUNCTIONS
@@ -120,8 +124,9 @@ void IO_Init()
 
 
 //---------------------------------------------------------------------------------------------
-// DESCRIPTION:     Настройка работы последовательного интерфейса USART
-// PARAMETERS:      baudrate - скорость передачи, бит/c
+// Function:     USART_Init -- Initialize USART
+// Parameters:   baudrate
+//---------------------------------------------------------------------------------------------
 
 void USART_Init(unsigned int baudrate)
 {
@@ -222,7 +227,7 @@ void DisplaySymbol(unsigned char digit, unsigned char symbol)
     
     // Turn off all transistors
     PORTB = 0xFF;
-    Delay(2000);
+    Delay(TRANSISTOR_DELAY);
     
     // Show symbol on the desired transistor
     PORTB = transistor;
@@ -236,6 +241,8 @@ void DisplaySymbol(unsigned char digit, unsigned char symbol)
 
 int main(void)
 {
+    unsigned char primaryLEDbuf[LED_DIGITS];
+    
     IO_Init();
     ADC_Init();
     USART_Init(BR_115200);
@@ -243,22 +250,32 @@ int main(void)
     sei();
     StartConvAdc();
 
-    USART_SendStr("Termometer\r\n");
+    USART_SendStr("Thermometer\r\n");
 
     // Checking pressed buttons
     while(1)
     {
-        DisplaySymbol(DIGIT1, e_LedBuf[DIGIT1]);
-        Delay(6000);
-
-        DisplaySymbol(DIGIT2, e_LedBuf[DIGIT2]);
-        Delay(6000);
+        // Copy LED buffer to primary LED buffer
+        primaryLEDbuf[DIGIT1] = e_LedBuf[DIGIT1];
+        primaryLEDbuf[DIGIT2] = e_LedBuf[DIGIT2];
+        primaryLEDbuf[DIGIT3] = e_LedBuf[DIGIT3];
+        primaryLEDbuf[DIGIT4] = e_LedBuf[DIGIT4];
         
-        DisplaySymbol(DIGIT3, e_LedBuf[DIGIT3]);
-        Delay(6000);
+        for(int frame = 0; frame < FRAMES_CNT; ++frame)
+        {
+            DisplaySymbol(DIGIT1, primaryLEDbuf[DIGIT1]);
+            Delay(DIGIT_DELAY);
 
-        DisplaySymbol(DIGIT4, e_LedBuf[DIGIT4]);
-        Delay(6000);
+            DisplaySymbol(DIGIT2, primaryLEDbuf[DIGIT2]);
+            Delay(DIGIT_DELAY);
+        
+            DisplaySymbol(DIGIT3, primaryLEDbuf[DIGIT3]);
+            Delay(DIGIT_DELAY);
+
+            DisplaySymbol(DIGIT4, primaryLEDbuf[DIGIT4]);
+            Delay(DIGIT_DELAY);
+        }        
+        
     }
 
     return 0;
