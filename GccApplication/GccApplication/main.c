@@ -256,10 +256,12 @@ int main(void)
     while(1)
     {
         // Copy LED buffer to primary LED buffer
+        cli();
         primaryLEDbuf[DIGIT1] = e_LedBuf[DIGIT1];
         primaryLEDbuf[DIGIT2] = e_LedBuf[DIGIT2];
         primaryLEDbuf[DIGIT3] = e_LedBuf[DIGIT3];
         primaryLEDbuf[DIGIT4] = e_LedBuf[DIGIT4];
+        sei();
         
         for(int frame = 0; frame < FRAMES_CNT; ++frame)
         {
