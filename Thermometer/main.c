@@ -42,11 +42,13 @@
 #define DIGIT3      2
 #define DIGIT4      3
 
-#define DIGIT_DELAY 6000
-#define TRANSISTOR_DELAY 2000
+#define DIGIT_DELAY         44
+#define TRANSISTOR_DELAY    1
 
 // Number of frames to display the measured value
-#define FRAMES_CNT  200
+#define FRAMES_CNT          20
+
+#define TIMER_PERIOD        100  // 100 us -- 
 
 //=============================================================================================
 // LOCAL VARIABLES
@@ -69,6 +71,7 @@ unsigned char e_LED_Symbols[][2] =
     {'9', 0b11110110 },
     {'-', 0b00000010 },
     {'.', 0b00000001 },
+    {' ', 0b00000000 },
     
     {'Z', 0b00000000 }      // Symbol table terminating code
 
@@ -118,10 +121,23 @@ void IO_Init()
     DDRC = 0xFF;
     
     // Initial value for indicator
-    PORTC = 0;
+    PORTC = 0xFF;
     
 }
 
+//---------------------------------------------------------------------------------------------
+// Initialize Timer0
+// Measures time
+// Clock prescaler CKL/8
+// Operation mode: CTC: WGM=010
+//---------------------------------------------------------------------------------------------
+void Timer0_Init()
+{
+    TCCR0 = (1 << WGM01);
+    TCCR0 = (1 << CS01);
+//    TIMSK = (1 << OCIE0);
+    OCR0 = TIMER_PERIOD * 2; // 200 us
+}
 
 //---------------------------------------------------------------------------------------------
 // Function:     USART_Init -- Initialize USART
@@ -165,7 +181,14 @@ void Delay(unsigned int time)
 {
     for(unsigned int t = 0; t < time; ++t)
     {
-        ;
+        volatile unsigned char timer_flags = TIFR;
+
+        while ( (timer_flags & (1 << OCF0) ) != (1 << OCF0) )
+        {
+            timer_flags = TIFR;
+        }
+
+        TIFR = timer_flags; // reset OCF0
     }
 }
 
@@ -182,7 +205,6 @@ void USART_SendStr(char *str)
 {
     static unsigned char ind;
 
-    //    cli();
     for(ind = 0; str[ind] != '\0'; ++ind)
     {
         USART_SendChar(str[ind]);
@@ -190,7 +212,6 @@ void USART_SendStr(char *str)
         if(str[ind] == '\n')
         break;
     }
-    //    sei();
 }
 
 //---------------------------------------------------------------------------------------------
@@ -202,7 +223,7 @@ unsigned char GetLedSymbol(char s)
 {
     unsigned char ledSymbol = (unsigned char)s;
 
-    // Se    
+    // Search for symbol
     for(int i = 0; e_LED_Symbols[i][0] != 'Z'; ++i)
     {
         if(e_LED_Symbols[i][0] == s)
@@ -223,15 +244,18 @@ unsigned char GetLedSymbol(char s)
 
 void DisplaySymbol(unsigned char digit, unsigned char symbol)
 {
-    unsigned char transistor = (0xFF ^ (1 << digit));
+    unsigned char transistor = (1 << digit);
     
     // Turn off all transistors
-    PORTB = 0xFF;
+    PORTB = 0;
     Delay(TRANSISTOR_DELAY);
+
     
     // Show symbol on the desired transistor
     PORTB = transistor;
     PORTC = symbol;
+
+    Delay(DIGIT_DELAY);
 }
 
 
@@ -246,6 +270,7 @@ int main(void)
     IO_Init();
     ADC_Init();
     USART_Init(BR_115200);
+    Timer0_Init();
 
     sei();
     StartConvAdc();
@@ -266,16 +291,9 @@ int main(void)
         for(int frame = 0; frame < FRAMES_CNT; ++frame)
         {
             DisplaySymbol(DIGIT1, primaryLEDbuf[DIGIT1]);
-            Delay(DIGIT_DELAY);
-
             DisplaySymbol(DIGIT2, primaryLEDbuf[DIGIT2]);
-            Delay(DIGIT_DELAY);
-        
             DisplaySymbol(DIGIT3, primaryLEDbuf[DIGIT3]);
-            Delay(DIGIT_DELAY);
-
             DisplaySymbol(DIGIT4, primaryLEDbuf[DIGIT4]);
-            Delay(DIGIT_DELAY);
         }        
         
     }
@@ -349,13 +367,4 @@ ISR(ADC_vect)
     e_LedBuf[DIGIT3] |= GetLedSymbol('.');
     
     StartConvAdc();
-}
-
-//---------------------------------------------------------------------------------------------
-// TIMER 0 Interrupt handler
-//---------------------------------------------------------------------------------------------
-
-ISR(TIMER0_OVF_vect)
-{
-
 }
