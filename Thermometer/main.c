@@ -31,10 +31,11 @@
 #define BR_9600     103
 
 // Thermo sensor parameters
-#define V_MIN   25
-#define V_MAX   475
-#define T_MIN   -500
-#define T_MAX   1500
+#define V_MIN   25      // 0,25 V
+#define V_MAX   475     // 4,75 V
+#define T_MIN   -500    // -50.0 C
+#define T_MAX   1470    // 150.0 C
+
 
 #define LED_DIGITS  4
 #define DIGIT1      0
@@ -46,7 +47,7 @@
 #define TRANSISTOR_DELAY    1
 
 // Number of frames to display the measured value
-#define FRAMES_CNT          20
+#define FRAMES_CNT          30
 
 #define TIMER_PERIOD        100  // 100 us -- 
 
